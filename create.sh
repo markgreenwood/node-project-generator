@@ -135,7 +135,7 @@ EOF
 
 function generate_test_code {
 mkdir test
-cat > test/test.ts <<- "EOF"
+cat > test/test.spec.ts <<- "EOF"
 const { expect } = require("chai");
 
 describe("This module", () => {
