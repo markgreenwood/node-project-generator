@@ -10,6 +10,8 @@ fi
 
 source utilities.sh
 
+MAIN_TARGET="index"
+
 DEV_DEPENDENCIES="
 eslint
 eslint-config-airbnb
@@ -32,11 +34,38 @@ typescript
 
 DEPENDENCIES=""
 
+if [[ "$2" == "hapi"* ]]; then
+  echo "It's a hapi project!"
+  MAIN_TARGET="server"
+  DEPENDENCIES="$DEPENDENCIES @hapi/hapi"
+  DEV_DEPENDENCIES="$DEV_DEPENDENCIES @types/hapi__hapi"
+fi
+
+if [ "$2" == "hapi-swagger" ]; then
+  echo "It's a hapi-swagger project!"
+  DEPENDENCIES="$DEPENDENCIES
+  @hapi/inert
+  @hapi/vision
+  @hapi/joi
+  @hapi/good
+  @hapi/good-squeeze
+  @hapi/good-console
+  hapi-swagger
+  "
+  DEV_DEPENDENCIES="$DEV_DEPENDENCIES
+  @types/hapi__inert
+  @types/hapi__vision
+  @types/hapi__joi
+  "
+fi
+
 function install_dev_dependencies {
+  echo "Installing devDependencies $DEV_DEPENDENCIES"
   npm i -D $DEV_DEPENDENCIES
 }
 
 function install_dependencies {
+  echo "Installing dependencies $DEPENDENCIES"
   npm i -S $DEPENDENCIES
 }
 
@@ -46,11 +75,11 @@ function config_package_json {
     jq '.scripts.test = "mocha --require ts-node/register test/**/*.ts"' |
     jq '.scripts += {"prestart":"npm run build"}' |
     jq '.scripts += {"start":"node ."}' |
-    jq '.scripts += {"start:dev":"nodemon src/index.ts"}' |
+    jq --arg MAIN_TARGET "$MAIN_TARGET" '.scripts += {"start:dev":("nodemon src/" + $MAIN_TARGET + ".ts")}' |
     jq '.scripts += {"lint":"eslint . --ext .ts,.js"}' |
     jq '.scripts += {"pretest":"npm run lint"}' |
     jq '.scripts += {"build":"tsc"}' |
-    jq '.main = "dist/index.js"' \
+    jq --arg MAIN_TARGET "$MAIN_TARGET" '.main = ("dist/" + $MAIN_TARGET + ".js")' \
     > package.json
   rm template.json
 }
@@ -63,9 +92,6 @@ EOF
 }
 
 function generate_hapi_server {
-  DEPENDENCIES="$DEPENDENCIES @hapi/hapi"
-  DEV_DEPENDENCIES="$DEV_DEPENDENCIES @types/hapi__hapi"
-
   mkdir src
 
   cat > src/server.ts <<- "EOF"
@@ -89,6 +115,109 @@ export default server;
 EOF
 }
 
+function generate_hapi_swagger_server {
+  mkdir src
+
+  cat > src/server.ts <<- "EOF"
+/* eslint-disable no-console */
+import * as Hapi from "@hapi/hapi";
+// @ts-ignore
+import good from "@hapi/good";
+import Inert from "@hapi/inert";
+import Vision from "@hapi/vision";
+import Joi from "@hapi/joi";
+import HapiSwagger from "hapi-swagger";
+
+const routes = [
+  {
+    method: "GET",
+    path: "/health",
+    handler: () => ({ status: "OK" }),
+  },
+  {
+    method: "GET",
+    path: "/test-route",
+    handler: (request: Hapi.Request) => ({
+      message: `Responding to request for qparam: ${request.query.qparam}`
+    }),
+    options: {
+      tags: ["api"],
+      validate: {
+        query: {
+          qparam: Joi.string().required()
+        }
+      }
+    }
+  },
+];
+
+const pkg = require("../package"); // eslint-disable-line import/no-unresolved
+
+const theServer = new Hapi.Server({ host: "localhost", port: 3000 });
+
+// Register plugins
+const goodOptions = {
+  ops: {
+    interval: 1000,
+  },
+  reporters: {
+    myConsoleReporter: [
+      {
+        module: "@hapi/good-squeeze",
+        name: "Squeeze",
+        args: [{ log: "*", response: "*" }],
+      },
+      {
+        module: "@hapi/good-console",
+      },
+      "stdout",
+    ],
+  },
+};
+
+const swaggerOptions: HapiSwagger.RegisterOptions = {
+  info: {
+    title: "Test API Documentation",
+    version: pkg.version,
+  },
+};
+
+theServer.route(routes);
+
+const init = async (server: Hapi.Server) => {
+  await server.register([
+    {
+      plugin: Inert,
+    },
+    {
+      plugin: Vision,
+    },
+    {
+      plugin: HapiSwagger,
+      options: swaggerOptions,
+    },
+    {
+      plugin: good,
+      options: goodOptions,
+    },
+  ]);
+  await server.start();
+  console.log("Server running on port: ", server.info.uri);
+};
+
+process.on("unhandledRejection", err => {
+  console.log(err);
+  process.exit(1);
+});
+
+if (require.main === module) {
+  init(theServer);
+}
+
+export default theServer;
+EOF
+}
+
 function generate_test_code {
   mkdir test
   cat > test/test.spec.ts <<- "EOF"
@@ -108,7 +237,7 @@ function generate_hapi_test_code {
 import { expect } from "chai";
 import { ServerInjectResponse } from "@hapi/hapi";
 
-const server = require("../src/server.ts");
+import server from "../src/server";
 
 describe("GET /health", () => {
   it("should return a healthcheck", () => {
@@ -136,8 +265,11 @@ echo "Configuring package.json"
 config_package_json
 config_nodemon
 
-if [ "$2" == "hapi" ]; then
+if [ "$2" == "hapi-basic" ]; then
   generate_hapi_server
+  generate_hapi_test_code
+elif [ "$2" == "hapi-swagger" ]; then
+  generate_hapi_swagger_server
   generate_hapi_test_code
 else
   generate_hello_world
@@ -147,9 +279,11 @@ fi
 create_ignore_files
 
 echo "Installing dependencies"
+echo $DEPENDENCIES
 install_dependencies
 
 echo "Installing devDependencies"
+echo $DEV_DEPENDENCIES
 install_dev_dependencies
 
 echo "Making initial commit"

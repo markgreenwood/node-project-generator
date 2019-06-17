@@ -2,4 +2,4 @@
 
 rm -rf test-project
 
-./create.sh test-project hapi
+./create.sh test-project hapi-swagger

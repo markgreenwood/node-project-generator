@@ -1,0 +1,59 @@
+{
+  "name": "test-project",
+  "version": "1.0.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "test": "mocha --require ts-node/register test/**/*.ts",
+    "prestart": "npm run build",
+    "start": "node .",
+    "start:dev": "nodemon src/server.ts",
+    "lint": "eslint . --ext .ts,.js",
+    "pretest": "npm run lint",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "Mark Greenwood <mrkjgreenwood@gmail.com> (http://markjgreenwood.com/)",
+  "license": "MIT",
+  "dependencies": {
+    "@hapi/good": "^8.2.0",
+    "@hapi/good-console": "^8.1.0",
+    "@hapi/good-squeeze": "^5.2.0",
+    "@hapi/hapi": "^18.3.1",
+    "@hapi/inert": "^5.2.0",
+    "@hapi/joi": "^15.0.3",
+    "@hapi/vision": "^5.5.2",
+    "hapi-swagger": "^10.0.2"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/hapi__hapi": "^18.2.4",
+    "@types/hapi__inert": "^5.2.0",
+    "@types/hapi__joi": "^15.0.2",
+    "@types/hapi__vision": "^5.5.0",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.0.8",
+    "@typescript-eslint/eslint-plugin": "^1.10.2",
+    "@typescript-eslint/parser": "^1.10.2",
+    "chai": "^4.2.0",
+    "eslint": "^5.16.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-config-prettier": "^5.0.0",
+    "eslint-plugin-import": "^2.17.3",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-prettier": "^3.1.0",
+    "eslint-plugin-react": "^7.13.0",
+    "mocha": "^6.1.4",
+    "prettier": "^1.18.2",
+    "ts-node": "^8.3.0",
+    "typescript": "^3.5.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markgreenwood/node-project-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/markgreenwood/node-project-generator/issues"
+  },
+  "homepage": "https://github.com/markgreenwood/node-project-generator#readme",
+  "description": ""
+}
