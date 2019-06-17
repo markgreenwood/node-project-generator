@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-rm -rf test-project && mkdir test-project && cd test-project
+rm -rf test-project
 
-./../create.sh
+./create.sh test-project hapi
