@@ -1,24 +1,19 @@
 #!/usr/bin/env bash
 
 DIRECTORY=$1
-PROJECT_TYPE=$2
 
-if [ -z $1 ] || [ -z $2 ]; then
-  echo "Usage: create <project-name> <project-type>"
+if [ -z $1 ]; then
+  echo "Usage: create-hapi-server <project-name>"
   exit 0
 fi
 
-source ~/Documents/Projects/node-project-generator/utilities.sh
-
-MAIN_TARGET="index"
+MAIN_TARGET="server"
 
 DEV_DEPENDENCIES="
 eslint
-eslint-config-airbnb
+eslint-config-airbnb-base
 eslint-config-prettier
 eslint-plugin-import
-eslint-plugin-react
-eslint-plugin-jsx-a11y
 eslint-plugin-prettier
 mocha
 chai
@@ -28,36 +23,46 @@ typescript
 @types/node
 @types/mocha
 @types/chai
+@types/hapi__hapi
+@types/hapi__inert
+@types/hapi__vision
+@types/hapi__joi
 @typescript-eslint/eslint-plugin
 @typescript-eslint/parser
 "
 
-DEPENDENCIES=""
+DEPENDENCIES="
+@hapi/hapi
+@hapi/inert
+@hapi/vision
+@hapi/joi
+@hapi/good
+@hapi/good-squeeze
+@hapi/good-console
+hapi-swagger
+"
 
-if [[ "$2" == "hapi"* ]]; then
-  echo "It's a hapi project!"
-  MAIN_TARGET="server"
-  DEPENDENCIES="$DEPENDENCIES @hapi/hapi"
-  DEV_DEPENDENCIES="$DEV_DEPENDENCIES @types/hapi__hapi"
-fi
+function initialize_project {
+  git init
+  npx license $(npm get init-license) -o "$(npm get init-author-name)" > LICENSE
+  npx gitignore node
+  npm init -y
+}
 
-if [ "$2" == "hapi-swagger" ]; then
-  echo "It's a hapi-swagger project!"
-  DEPENDENCIES="$DEPENDENCIES
-  @hapi/inert
-  @hapi/vision
-  @hapi/joi
-  @hapi/good
-  @hapi/good-squeeze
-  @hapi/good-console
-  hapi-swagger
-  "
-  DEV_DEPENDENCIES="$DEV_DEPENDENCIES
-  @types/hapi__inert
-  @types/hapi__vision
-  @types/hapi__joi
-  "
-fi
+function initial_commit {
+  git add -A
+  git commit -m "Initial commit"
+}
+
+function create_ignore_files {
+cat > .eslintignore <<- "EOF"
+dist
+EOF
+
+cat > .prettierignore <<- "EOF"
+dist
+EOF
+}
 
 function install_dev_dependencies {
   echo "Installing devDependencies $DEV_DEPENDENCIES"
@@ -84,48 +89,6 @@ function config_package_json {
   rm template.json
 }
 
-function generate_hello_world {
-mkdir src
-cat > src/index.ts <<- "EOF"
-console.log("Hello, World!");
-EOF
-}
-
-function generate_hapi_server {
-  mkdir src
-
-  cat > src/server.ts <<- "EOF"
-import * as Hapi from "@hapi/hapi";
-
-const init = async (server: Hapi.Server) => {
-  await server.start();
-  console.log("Server running on port: ", server.info.uri);
-};
-
-const server: Hapi.Server = new Hapi.Server({ host: "localhost", port: 3000 });
-
-server.route([
-  {
-    method: "GET",
-    path: "/health",
-    handler: () => ({ status: "OK" }),
-  },
-]);
-
-process.on("unhandledRejection", err => {
-  console.log(err);
-  process.exit(1);
-});
-
-if (require.main === module) {
-  init(server);
-  console.log(`Server started and running on ${server.info.uri}`);
-}
-
-export default server;
-EOF
-}
-
 function generate_hapi_swagger_server {
   mkdir src
 
@@ -149,16 +112,16 @@ const routes = [
     method: "GET",
     path: "/test-route",
     handler: (request: Hapi.Request) => ({
-      message: `Responding to request for qparam: ${request.query.qparam}`
+      message: `Responding to request for qparam: ${request.query.qparam}`,
     }),
     options: {
       tags: ["api"],
       validate: {
-        query: {
-          qparam: Joi.string().required()
-        }
-      }
-    }
+        query: Joi.object({
+          qparam: Joi.string().required(),
+        }),
+      },
+    },
   },
 ];
 
@@ -229,19 +192,6 @@ export default theServer;
 EOF
 }
 
-function generate_test_code {
-  mkdir test
-  cat > test/test.spec.ts <<- "EOF"
-const { expect } = require("chai");
-
-describe("This module", () => {
-  it("should do something", () => {
-    expect(true).to.equal(true);
-  });
-});
-EOF
-}
-
 function generate_hapi_test_code {
   mkdir test
   cat > test/test.spec.ts <<- "EOF"
@@ -257,6 +207,89 @@ describe("GET /health", () => {
       .then((response: ServerInjectResponse) => expect(response).to.be.ok);
   });
 });
+EOF
+}
+
+function config_eslint {
+cat > .eslintrc <<- "EOF"
+{
+  "parser": "@typescript-eslint/parser",
+  "extends": ["airbnb-base", "prettier", "plugin:import/typescript"],
+  "plugins": ["prettier", "@typescript-eslint"],
+  "rules": {
+    "prettier/prettier": ["error"],
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["error", { "vars": "all", "args": "after-used", "ignoreRestSiblings": false }]
+  },
+  "env": {
+    "mocha": true
+  }
+}
+EOF
+}
+
+function config_prettier {
+cat > .prettierrc <<- "EOF"
+{
+  "arrowParens": "avoid",
+  "bracketSpacing": true,
+  "htmlWhitespaceSensitivity": "css",
+  "insertPragma": false,
+  "jsxBracketSameLine": false,
+  "jsxSingleQuote": false,
+  "printWidth": 80,
+  "proseWrap": "preserve",
+  "requirePragma": false,
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "useTabs": false
+}
+EOF
+}
+
+function config_typescript {
+cat > tsconfig.json <<- "EOF"
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "target": "es6",
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "*": [
+        "node_modules/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ]
+}
+EOF
+}
+
+function config_nodemon {
+cat > nodemon.json <<- "EOF"
+{
+  "restartable": "rs",
+  "ignore": [".git", "node_modules/**/node_modules"],
+  "verbose": true,
+  "execMap": {
+    "ts": "node --require ts-node/register"
+  },
+  "watch": ["src/"],
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "ext": "js,json,ts"
+}
 EOF
 }
 
@@ -276,16 +309,8 @@ echo "Configuring package.json"
 config_package_json
 config_nodemon
 
-if [ "$2" == "hapi-basic" ]; then
-  generate_hapi_server
-  generate_hapi_test_code
-elif [ "$2" == "hapi-swagger" ]; then
-  generate_hapi_swagger_server
-  generate_hapi_test_code
-else
-  generate_hello_world
-  generate_test_code
-fi
+generate_hapi_swagger_server
+generate_hapi_test_code
 
 create_ignore_files
 

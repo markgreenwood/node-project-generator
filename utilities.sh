@@ -1,6 +1,6 @@
 function initialize_project {
   git init
-  npx license $(npm get init-license) -o "$(npm get init-author-name)" > LICENSE
+  npx license $(npm get init-license) -o "$(npm get init-author-name)"
   npx gitignore node
   npm init -y
 }
@@ -24,7 +24,7 @@ function config_eslint {
 cat > .eslintrc <<- "EOF"
 {
   "parser": "@typescript-eslint/parser",
-  "extends": ["airbnb", "prettier", "plugin:import/typescript"],
+  "extends": ["airbnb-base", "prettier", "plugin:import/typescript"],
   "plugins": ["prettier", "@typescript-eslint"],
   "rules": {
     "prettier/prettier": ["error"],
