@@ -16,7 +16,7 @@
   "author": "Mark Greenwood <mrkjgreenwood@gmail.com> (http://markjgreenwood.com/)",
   "license": "MIT",
   "dependencies": {
-    "@hapi/hapi": "^18.3.1"
+    "@hapi/hapi": "^18.4.1"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
